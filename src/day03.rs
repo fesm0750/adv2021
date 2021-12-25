@@ -15,6 +15,7 @@
 //! bit '1' for the Oxigen Generator Rating and a '0' for the CO2 Scrubber Rating.
 extern crate test;
 use crate::helpers::read;
+use std::str;
 
 pub fn run() {
     let diagnostic_report = read::to_str("day03").unwrap();
@@ -49,21 +50,16 @@ fn get_frequencies(input: &str) -> (usize, [u32; 12]) {
         }
         size = line_count;
     }
-    size += 1; // corrigindo contagem, pois iniciou em zero
+    size += 1; // correcting because counting started at zero
 
     (size, frequencies)
 }
 
 fn calculate_gamma(frequencies: &[u32; 12], size: usize) -> u32 {
-    const GAMMA_MASK: u32 = 0b100000000000; // gamma is composed by the most commmon bit for each position
-    let half_size = (size / 2) as u32;
-    let mut gamma = 0;
-    for (i, &freq) in frequencies.iter().enumerate() {
-        if freq > half_size {
-            gamma += GAMMA_MASK >> i;
-        }
-    }
-    gamma
+    let half_size = ((size + 1) / 2) as u32;
+    let gamma = frequencies.map(|f| if f > half_size { b'1' } else { b'0' });
+    let gamma = unsafe { str::from_utf8_unchecked(&gamma) };
+    parse_binary(gamma)
 }
 
 fn calculate_epsilon(gamma: u32) -> u32 {
