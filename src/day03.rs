@@ -100,7 +100,7 @@ fn most_common_byte_at(input: &[&str], at: usize) -> Option<u8> {
     let mut freq = 0;
     let mut size = 0;
 
-    // validation added because of a previous bug where `input` came empty. Although it may not
+    // validation added because of a previous bug where `input` came empty. Although that may not
     // happen anymore, it is still a nice validation to keep around.
     if input.is_empty() {
         return None;
@@ -120,16 +120,16 @@ fn most_common_byte_at(input: &[&str], at: usize) -> Option<u8> {
         size = line_count;
     }
 
-    size += 2; // correcting because counter starts at zero and because integer division rounds down
+    size += 2; // correcting because counter started at zero and because integer division rounds down
 
     let most_common = if freq >= size / 2 { b'1' } else { b'0' };
     Some(most_common)
 }
 
-/// Parses strings representing binary numbers up to 12 bits.
+/// Parses strings representing binary numbers up to 32 bits.
 /// Also returns zero if input is empty.
 fn parse_binary(s: &str) -> u32 {
-    const MAX_BITS: usize = 12;
+    const MAX_BITS: usize = 32;
     const PARSE_MASK: u32 = 0b1 << (MAX_BITS - 1); // exemple for 8 bits -> 0b10000000
     let number_of_bits = s.len();
 
