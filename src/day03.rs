@@ -58,6 +58,7 @@ fn get_frequencies(input: &str) -> (usize, [u32; 12]) {
 fn calculate_gamma(frequencies: &[u32; 12], size: usize) -> u32 {
     let half_size = ((size + 1) / 2) as u32;
     let gamma = frequencies.map(|f| if f > half_size { b'1' } else { b'0' });
+    // Safety: array has been built above and contains only valid characters
     let gamma = unsafe { str::from_utf8_unchecked(&gamma) };
     parse_binary(gamma)
 }
