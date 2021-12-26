@@ -13,8 +13,7 @@ use std::str::FromStr;
 use crate::helpers::read;
 
 pub fn run() {
-    let input = read::to_str("day02").unwrap();
-    let commands = read::lines_into_vec(&input);
+    let commands = read::file_lines_to_vec("day02").unwrap();
     let (x, y) = navigate_part1(&commands);
 
     println!("Day 02");

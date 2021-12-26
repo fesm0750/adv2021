@@ -18,7 +18,7 @@ use crate::helpers::read;
 use std::str;
 
 pub fn run() {
-    let diagnostic_report = read::to_str("day03").unwrap();
+    let diagnostic_report = read::file_to_string("day03").unwrap();
 
     // Part 01 - Power consumption parameters
     let (size, frequencies) = get_frequencies(&diagnostic_report);
@@ -36,8 +36,8 @@ pub fn run() {
     println!("Life Support Rate: {}", ogr * co2sr);
 }
 
-/// returns the total of elements processed and an array of frequencies for bit `1` in each
-/// position.
+/// returns the total of elements processed and an array of frequency of occurencies for bit `1` in
+/// each position.
 fn get_frequencies(input: &str) -> (usize, [u32; 12]) {
     let mut frequencies: [u32; 12] = [0; 12];
     let mut size = 0;
@@ -63,6 +63,7 @@ fn calculate_gamma(frequencies: &[u32; 12], size: usize) -> u32 {
     parse_binary(gamma)
 }
 
+/// Supports number up to 12 bits.
 fn calculate_epsilon(gamma: u32) -> u32 {
     const INVERSION_MASK: u32 = 0b111111111111;
     gamma ^ INVERSION_MASK
@@ -131,7 +132,7 @@ fn most_common_byte_at(input: &[&str], at: usize) -> Option<u8> {
 /// Also returns zero if input is empty.
 fn parse_binary(s: &str) -> u32 {
     const MAX_BITS: usize = 32;
-    const PARSE_MASK: u32 = 0b1 << (MAX_BITS - 1); // exemple for 8 bits -> 0b10000000
+    const PARSE_MASK: u32 = 0b1 << (MAX_BITS - 1); // example for 8 bits -> 0b10000000
     let number_of_bits = s.len();
 
     s.as_bytes()
@@ -159,7 +160,7 @@ mod tests {
             "11001", "00010", "01010"
         ];
         static ref ONES: String = "111111111111".to_string();
-        static ref FILE: Vec<String> = read::to_lines("day03").unwrap().flatten().collect();
+        static ref FILE: Vec<String> = read::file_lines_to_vec("day03").unwrap();
     }
 
     #[test]

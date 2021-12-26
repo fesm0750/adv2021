@@ -65,8 +65,7 @@ fn depth_slice_window(depths: &[u32]) -> Vec<u32> {
 }
 
 pub fn run() {
-    let input = read::to_str("day01").unwrap();
-    let depths = read::lines_into_vec::<u32>(&input);
+    let depths = read::file_lines_to_vec("day01").unwrap();
 
     println!("Day 01");
     println!(
@@ -138,7 +137,7 @@ mod tests {
 
     lazy_static! {
         static ref TEST_INPUT: Vec<u32> = vec![199, 200, 208, 210, 200, 207, 240, 269, 260, 263];
-        static ref INPUT: Vec<u32> = read::lines_into_vec(&read::to_str("day01").unwrap());
+        static ref INPUT: Vec<u32> = read::file_lines_to_vec("day01").unwrap();
     }
 
     //-----------------
