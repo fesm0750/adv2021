@@ -26,10 +26,14 @@ fn parse_input(input: &str) -> (Vec<u8>, Vec<BingoBoard>) {
     (drawn_numbers, boards)
 }
 
-/// returns an iterator over the scores of the winning boards
+/// returns a tuple containing the scores of the first and last winner.
+/// # Warning
+/// As and Advent of Code solution, it assumes the first and last winners are uniquely defined.
+/// Draws for the first winner will yield the score for the later boars, instead of the very first
+/// one.
 fn go_bingo(boards: Vec<BingoBoard>, draw_numbers: impl Iterator<Item = u8>) -> (u32, u32) {
     // iterator does not yield all boards. For simplicity, if there is a draw, only the last one is
-    // yield
+    // yielded
     let mut unstable_winners = draw_numbers
         .scan(boards, |boards, x| {
             if !boards.is_empty() {
@@ -104,7 +108,7 @@ impl FromStr for BingoBoard {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let board: Vec<u8> = s.split_ascii_whitespace().flat_map(str::parse).collect();
-        let board: [u8; 25] = board.try_into().unwrap(); // how to use ? here?
+        let board: [u8; 25] = board.try_into().unwrap(); //? how to use ? here?
         Ok(Self::new(board))
     }
 }
