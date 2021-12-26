@@ -5,11 +5,11 @@ use crate::helpers::read;
 pub fn run() {
     let input = read::file_to_string("day04").unwrap();
     let (draw_numbers, boards) = parse_input(&input);
-    let mut winners = go_bingo(boards, draw_numbers.into_iter());
+    let (first_winner, last_winner) = go_bingo(boards, draw_numbers.into_iter());
 
     println!("Day 04");
-    println!("First Winning Board Score: {}", winners.next().unwrap());
-    println!("Last Winning Board Score: {}", winners.last().unwrap());
+    println!("First Winning Board Score: {}", first_winner);
+    println!("Last Winning Board Score: {}", last_winner);
     println!();
 }
 
@@ -27,11 +27,10 @@ fn parse_input(input: &str) -> (Vec<u8>, Vec<BingoBoard>) {
 }
 
 /// returns an iterator over the scores of the winning boards
-fn go_bingo(
-    boards: Vec<BingoBoard>,
-    draw_numbers: impl Iterator<Item = u8>,
-) -> impl Iterator<Item = u32> {
-    draw_numbers
+fn go_bingo(boards: Vec<BingoBoard>, draw_numbers: impl Iterator<Item = u8>) -> (u32, u32) {
+    // iterator does not yield all boards. For simplicity, if there is a draw, only the last one is
+    // yield
+    let mut unstable_winners = draw_numbers
         .scan(boards, |boards, x| {
             if !boards.is_empty() {
                 Some((x, boards.drain_filter(|b| b.mark_number(x)).last()))
@@ -39,7 +38,12 @@ fn go_bingo(
                 None
             }
         })
-        .filter_map(|(x, board)| board.map(|b| b.calculate_score(x)))
+        .filter_map(|(x, board)| board.map(|b| b.calculate_score(x)));
+
+    (
+        unstable_winners.next().unwrap(),
+        unstable_winners.last().unwrap(),
+    )
 }
 
 /// complete a row or column to win
