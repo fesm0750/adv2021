@@ -4,30 +4,13 @@ use crate::helpers::read;
 
 pub fn run() {
     let input = read::file_to_string("day04").unwrap();
-    let (drawn_numbers, mut boards) = parse_input(&input);
-
-    let mut score = 0;
-
-    for x in drawn_numbers {
-        let mut has_won = false;
-        for board in &mut boards {
-            has_won = board.mark_number(x);
-            if has_won {
-                score = board.calculate_score(x);
-                break;
-            }
-        }
-        if has_won {
-            break;
-        }
-    }
+    let (draw_numbers, boards) = parse_input(&input);
+    let mut winners = go_bingo(boards, draw_numbers.into_iter());
 
     println!("Day 04");
-    println!("First Winning Board Score: {}", score);
+    println!("First Winning Board Score: {}", winners.next().unwrap());
+    println!("Last Winning Board Score: {}", winners.last().unwrap());
     println!();
-
-    // let total_boards = boards.len();
-    // while
 }
 
 fn parse_input(input: &str) -> (Vec<u8>, Vec<BingoBoard>) {
@@ -43,12 +26,28 @@ fn parse_input(input: &str) -> (Vec<u8>, Vec<BingoBoard>) {
     (drawn_numbers, boards)
 }
 
-/// complete a row or column to win
+/// returns an iterator over the scores of the winning boards
+fn go_bingo(
+    boards: Vec<BingoBoard>,
+    draw_numbers: impl Iterator<Item = u8>,
+) -> impl Iterator<Item = u32> {
+    draw_numbers
+        .scan(boards, |boards, x| {
+            if !boards.is_empty() {
+                Some((x, boards.drain_filter(|b| b.mark_number(x)).last()))
+            } else {
+                None
+            }
+        })
+        .filter_map(|(x, board)| board.map(|b| b.calculate_score(x)))
+}
 
+/// complete a row or column to win
 struct BingoBoard {
     board_numbers: [u8; 25],   // original board
-    board_markers: [bool; 25], // markers to determine which numbers where drawn
-    board_scores: [u8; 10],    // keep track of currente scores of lines and columns
+    board_markers: [bool; 25], // markers to determine which numbers are marked
+    board_row_scores: [u8; 5], // keeps track of marked numbers in each row
+    board_col_scores: [u8; 5], // keeps track of marked numbers in each column
 }
 
 impl BingoBoard {
@@ -56,20 +55,21 @@ impl BingoBoard {
         Self {
             board_numbers: board,
             board_markers: [false; 25],
-            board_scores: [0; 10],
+            board_row_scores: [0; 5],
+            board_col_scores: [0; 5],
         }
     }
 
-    // returns true if this board has won
+    /// returns true if this board has won
     pub fn mark_number(&mut self, n: u8) -> bool {
         let on_board = self.board_numbers.iter().enumerate().find(|(_, &x)| x == n);
         if let Some((idx, _)) = on_board {
             self.board_markers[idx] = true;
-            let row = BingoBoard::row_idx(idx);
-            let col = BingoBoard::col_idx(idx);
-            self.board_scores[row] += 1;
-            self.board_scores[col] += 1;
-            return self.board_scores[row] == 5 || self.board_scores[col] == 5;
+            let row_idx = idx / 5;
+            let col_idx = idx % 5;
+            self.board_row_scores[row_idx] += 1;
+            self.board_col_scores[col_idx] += 1;
+            return self.board_row_scores[row_idx] == 5 || self.board_col_scores[col_idx] == 5;
         }
         false
     }
@@ -87,20 +87,11 @@ impl BingoBoard {
         sum * last_draw as u32
     }
 
-    //------------------------------
-    // Private Helpers
-    //------------------------------
-
-    /// returns the `board_scores` index for the row where `idx` is located on the flat board
-    /// position.
-    fn row_idx(idx: usize) -> usize {
-        idx / 5
-    }
-
-    /// returns the `board_scores` index for the column where `idx` is located on the flat board
-    /// position.
-    fn col_idx(idx: usize) -> usize {
-        5 + (idx % 5)
+    #[allow(dead_code)]
+    pub fn clean(&mut self) {
+        self.board_markers = [false; 25];
+        self.board_row_scores = [0; 5];
+        self.board_col_scores = [0; 5];
     }
 }
 
