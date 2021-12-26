@@ -2,16 +2,68 @@
     // Use IntelliSense to learn about possible attributes.
     // Hover to view descriptions of existing attributes.
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    //
+    // Breakpoints in rust debugging doesnt't work very well if the project has been opened from a 
+    // simlink location. I haven't been able to figure out a way to configure a path on the files, 
+    // so the best curse of action is to open the project from a non simlink path.
     "version": "0.2.0",
     "configurations": [
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug",
-            "program": "${workspaceFolder}/target/debug/adv2021",
+            "name": "Debug unit tests in library 'adv21'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=adv2021"
+                ],
+                "filter": {
+                    "name": "adv21",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'adv2021'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=adv2021",
+                    "--package=adv2021"
+                ],
+                "filter": {
+                    "name": "adv2021",
+                    "kind": "bin"
+                }
+            },
             "args": [
-                "3"
+                "4"
             ],
+            "cwd": "${workspaceFolder}",
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'adv2021'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=adv2021",
+                    "--package=adv2021"
+                ],
+                "filter": {
+                    "name": "adv2021",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
             "cwd": "${workspaceFolder}"
         }
     ]
