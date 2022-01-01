@@ -32,3 +32,38 @@ fn max_width<T: AsRef<str>>(strings: impl IntoIterator<Item = T>) -> usize {
         .unwrap_or(0)
 }
 ```
+
+## String Processing
+
+Nice link: <https://lise-henry.github.io/articles/optimising_strings.html>
+
+## Error Handling and the ? Operator
+
+Not able to mix the ? operator with Options and Results: <https://stackoverflow.com/questions/59568278/why-does-the-operator-report-the-error-the-trait-bound-noneerror-error-is-no>
+
+Parameter type not living long enough: <https://stackoverflow.com/questions/59568278/why-does-the-operator-report-the-error-the-trait-bound-noneerror-error-is-no>
+
+## Iterators
+
+<https://doc.rust-lang.org/std/iter/index.html>
+<https://doc.rust-lang.org/std/iter/trait.Iterator.html>
+<https://docs.rs/itertools/0.8.2/itertools/trait.Itertools.html>
+
+### Iterators of pairs
+
+Slices already have the methods `chuncks()` and `chuncks_exact()` to create iterator yielding multiples elements by iteration.
+
+## General Tips
+
+Always prefer clarity while coding. Coding needs to be maintained and be easy to understand after the initial design. For example, consider the snippets bellow:
+
+```rust
+let y0 = min(p0.y, p1.y);
+let y1 = max(p0.y, p1.y);
+```
+
+```rust
+let (y0, y1) = (min(p0.y, p1.y), max(p0.y, p1.y));
+```
+
+Both snippets compare two values and saves the minimum and maximum values into variables. The second one may be more concise, but the first convey much better the intent.
