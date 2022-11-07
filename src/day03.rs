@@ -2,17 +2,29 @@
 //!
 //! # Problem:
 //!
-//! From an input file containig a list of binary values:
+//! From an input file containig a list of binary numbers:
 //!
-//! 1. Determine which bit is the most common bit for each position and then create the numbers
-//! gamma and epsilon based on those values;
+//! 1. Determine which bit is the most common for each position and then calculate the power
+//! consumption rate based on this information;
 //!
-//! 2.
+//! 2. Determine the Oxygen Generator Rating and the CO2 Scrubber Ratings. Filter the numbers
+//! according to a bit criteria until just one remains. Criterias:
+//!    a. For the OGR, find the most common value for a bit position and keep only numbers with
+//! that bit in that position, then repeat the process for the next position;
+//!    b. For CO2 Scrubber rating, keep only the numbers that have the least common value.
 //!
 //! # Implementation Details
 //!
-//! For part 1, there is no rule for draws. However, for part 2 a draw would result in yielding a
-//! bit '1' for the Oxigen Generator Rating and a '0' for the CO2 Scrubber Rating.
+//! For part 1, the `get_frequencies` function reads the whole list and returns a `frequencies`
+//! array with the counting of the occurencies of bit `1` for each position. This info is used later
+//! to determine the most common bits.
+//!
+//! For part 2 uses `most_common_bit_at` a given position due to the need of iteratively filtering
+//! the list;
+//!
+//! Tie rules: for part 1, a tie results in bit 1. However, for part 2, a draw would result in
+//! yielding a bit '1' for the Oxigen Generator Rating and a '0' for the CO2 Scrubber Rating.
+
 extern crate test;
 use crate::helpers::read;
 use std::str;
@@ -22,8 +34,7 @@ pub fn run() {
 
     // Part 01 - Power consumption parameters
     let (size, frequencies) = get_frequencies(&diagnostic_report);
-    let gamma = calculate_gamma(&frequencies, size); // most common bits on diagnostic_report
-    let epsilon = calculate_epsilon(gamma); // least common bits
+    let pcr = power_consumption_rate(size, &frequencies);
 
     // Part 02 - Life support parameters
     let diagnostic_report: Vec<&str> = diagnostic_report.lines().collect();
@@ -31,13 +42,23 @@ pub fn run() {
     let co2sr = calc_life_support_params(&diagnostic_report, false);
 
     println!("Day 03");
-    println!("Power Consumption Rate: {}", gamma * epsilon);
-    println!();
+    println!("Power Consumption Rate: {}", pcr);
     println!("Life Support Rate: {}", ogr * co2sr);
+    println!();
 }
 
-/// returns the total of elements processed and an array of frequency of occurencies for bit `1` in
-/// each position.
+/// returns the total of elements in the list and an array of `frequencies` for the occurencies of
+/// bit `1` in each position.
+///
+/// # Assumptions:
+/// `input` is a list of 12 bits binary numbers separated by new line characters.
+///
+/// # Implementation Details
+/// Even if a value has less than 12 bits, it is considered to have the least significant bits as
+/// zero. For example, 101 would be processed as 101000000000.
+///
+/// # Panics
+/// Panics if a value in the list has more than 12 bits.
 fn get_frequencies(input: &str) -> (usize, [u32; 12]) {
     let mut frequencies: [u32; 12] = [0; 12];
     let mut size = 0;
@@ -50,55 +71,72 @@ fn get_frequencies(input: &str) -> (usize, [u32; 12]) {
         }
         size = line_count;
     }
-    size += 1; // correcting because counting started at zero
+    size += 1; // +1 because counting started at zero
 
     (size, frequencies)
 }
 
-fn calculate_gamma(frequencies: &[u32; 12], size: usize) -> u32 {
-    let half_size = ((size + 1) / 2) as u32;
-    let gamma = frequencies.map(|f| if f > half_size { b'1' } else { b'0' });
+/// returns the power_consumption_rate
+fn power_consumption_rate(total_elements: usize, bit_1_frequencies: &[u32; 12]) -> u32 {
+    // gamma is composed by the most common bits on diagnostic report
+    let gamma = bit_1_frequencies.map(|f| most_common_bit_as_ascii(total_elements, f));
     // Safety: array has been built above and contains only valid characters
-    let gamma = unsafe { str::from_utf8_unchecked(&gamma) };
-    parse_binary(gamma)
-}
+    let gamma = parse_binary(unsafe { str::from_utf8_unchecked(&gamma) });
 
-/// Supports number up to 12 bits.
-fn calculate_epsilon(gamma: u32) -> u32 {
+    // epsilon is the reverse of gamma, the least common digits
     const INVERSION_MASK: u32 = 0b111111111111;
-    gamma ^ INVERSION_MASK
+    let epsilon = gamma ^ INVERSION_MASK;
+
+    gamma * epsilon
 }
 
-/// returns life support parameters. If the flag `is_ogr` is set, it return the Oxygen Generator
-/// Rating, otherwise it returns the CO2 Scrubber Rating.
+/// returns life support parameters. If the flag `is_ogr` is set, it returns the Oxygen Generator
+/// Rating, otherwise returns the CO2 Scrubber Rating.
+///
+/// # Assumptions
+/// Assumes an unique solution will always exist.
+///
+/// # Implementation Details
+/// Copies the input because the contents of the inner `Vec` will be filtered by each iteration.
 fn calc_life_support_params(input: &[&str], is_ogr: bool) -> u32 {
-    let mut bytes: Vec<&str> = input.iter().copied().collect();
+    let mut values: Vec<&str> = input.iter().copied().collect(); // copies the input cuz filtered elements are removed from `Vec`
     let mut idx = 0;
-    while let Some(most_common) = most_common_byte_at(&bytes, idx) {
-        if bytes.len() == 1 {
+    while let Some(most_common) = most_common_bit_at(&values, idx) {
+        if values.len() == 1 {
             break;
         }
-        bytes = bytes
+        values = values
             .iter()
             .filter(|s| {
-                let is_most_common = s.as_bytes()[idx] == most_common;
-                !(is_most_common ^ is_ogr) // if `is_ogr` is set, the filter is by the most common,
-                                           // otherwise filters by the least common
+                // if `is_ogr` is set, the filter is by the most common, otherwise filters by the
+                // least common
+                !((s.as_bytes()[idx] == most_common) ^ is_ogr)
             })
             .copied()
             .collect();
         idx += 1;
     }
 
-    parse_binary(&bytes[0])
+    parse_binary(&values[0])
 }
 
 //--------------------------------------------------------------------
 // Helpers
 //--------------------------------------------------------------------
 
-///
-fn most_common_byte_at(input: &[&str], at: usize) -> Option<u8> {
+/// returns the ascii code for one if `bit_1_count` is equals or greather than `total_elements`,
+/// otherwise returns the ascii code for zero.
+fn most_common_bit_as_ascii(total_elements: usize, bit_1_count: u32) -> u8 {
+    if bit_1_count >= ((total_elements + 1) / 2) as u32 {
+        b'1'
+    } else {
+        b'0'
+    }
+}
+
+/// From a list of string values representing binary numbers, find the most common bit `at` a the
+/// given position and return it as Ascii code.
+fn most_common_bit_at(input: &[&str], at: usize) -> Option<u8> {
     let mut freq = 0;
     let mut size = 0;
 
@@ -108,23 +146,17 @@ fn most_common_byte_at(input: &[&str], at: usize) -> Option<u8> {
         return None;
     }
 
+    // counting the occurencies of bit `1`
     for (line_count, s) in input.iter().enumerate() {
-        let byte = s.as_bytes().get(at);
-        let byte = if let Some(&x) = byte {
-            x
-        } else {
-            return None;
-        };
-
-        if byte == b'1' {
+        let bit = s.as_bytes().get(at)?;
+        if *bit == b'1' {
             freq += 1;
         }
         size = line_count;
     }
 
-    size += 2; // correcting because counter started at zero and because integer division rounds down
-
-    let most_common = if freq >= size / 2 { b'1' } else { b'0' };
+    size += 1; // correcting because counter started at zero
+    let most_common = most_common_bit_as_ascii(size, freq);
     Some(most_common)
 }
 
@@ -139,9 +171,7 @@ fn parse_binary(s: &str) -> u32 {
         .iter()
         .enumerate()
         .filter(|(_, &bit)| bit == b'1')
-        .fold(0, |acc, (i, _)| {
-            acc + (PARSE_MASK >> (MAX_BITS - number_of_bits + i))
-        })
+        .fold(0, |acc, (i, _)| acc + (PARSE_MASK >> (MAX_BITS - number_of_bits + i)))
 }
 
 //--------------------------------------------------------------------
@@ -155,37 +185,70 @@ mod tests {
     use test::Bencher;
 
     lazy_static! {
-        static ref TEST_INPUT: Vec<&'static str> = vec![
-            "00100", "11110", "10110", "10111", "10101", "01111", "00111", "11100", "10000",
-            "11001", "00010", "01010"
+        static ref TEST_INPUT_STRING: String =
+            "001\n1101\n10001\n100001\n1000001\n01000001\n000000011\n1100000111\n10\n11".to_string();
+        static ref TEST_INPUT_VEC: Vec<&'static str> = vec![
+            "00100", "11110", "10110", "10111", "10101", "01111", "00111", "11100", "10000", "11001", "00010", "01010"
         ];
-        static ref ONES: String = "111111111111".to_string();
         static ref FILE: Vec<String> = read::file_lines_to_vec("day03").unwrap();
     }
 
     #[test]
-    fn test_most_common_byte_at() {
-        assert_eq!(most_common_byte_at(&TEST_INPUT, 0).unwrap(), b'1');
-        assert_eq!(most_common_byte_at(&TEST_INPUT, 1).unwrap(), b'0');
-        assert_eq!(most_common_byte_at(&TEST_INPUT, 2).unwrap(), b'1');
-        assert_eq!(most_common_byte_at(&TEST_INPUT, 3).unwrap(), b'1');
-        assert_eq!(most_common_byte_at(&TEST_INPUT, 4).unwrap(), b'0');
+    fn test_get_frequencies() {
+        assert_eq!(
+            get_frequencies(&TEST_INPUT_STRING),
+            (10, [7, 4, 1, 1, 1, 1, 1, 3, 2, 1, 0, 0])
+        );
     }
 
     #[test]
-    fn test_calculate_ogr() {
-        assert_eq!(calc_life_support_params(&TEST_INPUT, true), 23);
-        assert_eq!(calc_life_support_params(&TEST_INPUT, false), 10);
+    fn test_power_consumption_rate() {
+        assert_eq!(
+            power_consumption_rate(10, &[7, 4, 1, 1, 1, 1, 1, 3, 2, 1, 0, 0]),
+            4192256
+        );
+    }
+
+    #[test]
+    fn test_parse_binary() {
+        assert_eq!(parse_binary(&""), 0);
+        assert_eq!(parse_binary(&"10110"), 22);
+        assert_eq!(parse_binary(&"01001"), 9);
+        assert_eq!(parse_binary(&"11111111111111111111111111111111"), 4294967295); // 32 bits
+    }
+
+    #[test]
+    fn test_most_common_bit_as_ascii() {
+        assert_eq!(most_common_bit_as_ascii(3, 1), b'0');
+        assert_eq!(most_common_bit_as_ascii(3, 2), b'1');
+        assert_eq!(most_common_bit_as_ascii(4, 1), b'0');
+        assert_eq!(most_common_bit_as_ascii(4, 2), b'1');
+        assert_eq!(most_common_bit_as_ascii(4, 3), b'1');
+    }
+
+    #[test]
+    fn test_most_common_byte_at() {
+        assert_eq!(most_common_bit_at(&TEST_INPUT_VEC, 0).unwrap(), b'1');
+        assert_eq!(most_common_bit_at(&TEST_INPUT_VEC, 1).unwrap(), b'0');
+        assert_eq!(most_common_bit_at(&TEST_INPUT_VEC, 2).unwrap(), b'1');
+        assert_eq!(most_common_bit_at(&TEST_INPUT_VEC, 3).unwrap(), b'1');
+        assert_eq!(most_common_bit_at(&TEST_INPUT_VEC, 4).unwrap(), b'0');
+    }
+
+    #[test]
+    fn test_calc_life_support_params() {
+        assert_eq!(calc_life_support_params(&TEST_INPUT_VEC, true), 23);
+        assert_eq!(calc_life_support_params(&TEST_INPUT_VEC, false), 10);
     }
 
     #[bench]
     fn bench_calc_life_support_rating1a(b: &mut Bencher) {
-        b.iter(|| calc_life_support_params(&TEST_INPUT, true));
+        b.iter(|| calc_life_support_params(&TEST_INPUT_VEC, true));
     }
 
     #[bench]
     fn bench_calc_life_support_rating2a(b: &mut Bencher) {
-        b.iter(|| calc_life_support_params(&TEST_INPUT, false));
+        b.iter(|| calc_life_support_params(&TEST_INPUT_VEC, false));
     }
 
     #[bench]
@@ -200,80 +263,3 @@ mod tests {
         b.iter(|| calc_life_support_params(&file, false));
     }
 }
-
-//--------------------------------------------------------------------
-// Trying a purely iteration solution
-//--------------------------------------------------------------------
-
-// fn calculate_ogr<'a>(input: &'a str) {
-//     let mut iter: Box<dyn Iterator<Item = &'a str>> = Box::new(input.lines());
-
-//     let process = |iter: Box<dyn Iterator<Item = &'a str>>| {};
-
-//     for i in 0..12 {
-//         iter = Box::new(iter.filter(|&s| s.as_bytes().iter().nth(i.clone()).unwrap() == &b'1'));
-//     }
-// }
-
-//--------------------------------------------------------------------
-// Iterator for getting the most common byte at each position in order
-//--------------------------------------------------------------------
-
-// struct CommonByteIter<'a> {
-//     str: &'a str,
-//     idx: usize,
-// }
-
-// impl<'a> CommonByteIter<'a> {
-//     fn new(str: &'a str) -> Self {
-//         Self { str, idx: 0 }
-//     }
-// }
-
-// impl Iterator for CommonByteIter<'_> {
-//     type Item = bool;
-
-//     fn next(&mut self) -> Option<Self::Item> {
-//         let mut freq = 0;
-//         let mut size = 0;
-
-//         for (count, s) in self.str.lines().enumerate() {
-//             let byte = s.as_bytes().get(self.idx);
-//             let byte = if let Some(&x) = byte {
-//                 x
-//             } else {
-//                 return None;
-//             };
-
-//             if byte == b'1' {
-//                 freq += 1;
-//             }
-//             size = count;
-//         }
-
-//         self.idx += 1;
-//         Some(freq >= size / 2)
-//     }
-// }
-
-//--------------------------------------------------------------------
-// Helpers
-//--------------------------------------------------------------------
-
-// fn is_most_common_at_iter<'a, I>(input: I, pos: usize) -> bool
-// where
-//     I: IntoIterator<Item = &'a str>,
-// {
-//     let mut freq = 0;
-//     let mut size = 0;
-
-//     for (line_count, s) in input.into_iter().enumerate() {
-//         let s = s.as_bytes();
-//         if s[pos] == b'1' {
-//             freq += 1;
-//         }
-//         size = line_count;
-//     }
-
-//     freq >= size / 2
-// }
