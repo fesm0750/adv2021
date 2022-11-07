@@ -2,11 +2,17 @@
 //!
 //! # Problem:
 //!
-//! From an input file containig a list of commands:
+//! From an input file containig a list of commands for a submarine:
 //!
 //! 1. Determine depth and distance travelled by the submarine by the first set of rules;
 //!
 //! 2. Determine depth and distance by the second set of rules;
+//!
+//! # Implementation Details
+//!
+//! Defines a structure `SubCommand` to store a command consisting of a `Direction` enum and an i32
+//! value `val`.
+
 use std::error::Error;
 use std::str::FromStr;
 
@@ -18,16 +24,16 @@ pub fn run() {
 
     println!("Day 02");
     println!("Part 01 - Depth times Distance: {}", x * y);
-    println!();
 
     let (x1, y1) = navigate_part2(&commands);
     println!("Part 02 - Depth times Distance: {}", x1 * y1);
     println!();
 }
 
+/// Returns a tuple `(x, y)` as the final position of the submarine by the first set of rules.
 fn navigate_part1(commands: &[SubCommand]) -> (i32, i32) {
     let (mut x, mut y) = (0, 0);
-    for &sc in commands {
+    for sc in commands {
         match sc.dir {
             Direction::Upward => y -= sc.val,
             Direction::Downward => y += sc.val,
@@ -37,9 +43,10 @@ fn navigate_part1(commands: &[SubCommand]) -> (i32, i32) {
     (x, y)
 }
 
+/// Returns a tuple `(x, y)` as the final position of the submarine by the second set of rules.
 fn navigate_part2(commands: &[SubCommand]) -> (i32, i32) {
     let (mut x, mut y, mut aim) = (0, 0, 0);
-    for &sc in commands {
+    for sc in commands {
         match sc.dir {
             Direction::Upward => aim -= sc.val,
             Direction::Downward => aim += sc.val,
