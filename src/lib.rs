@@ -1,6 +1,5 @@
 #![feature(test)]
-#![feature(array_map)]
-#![feature(drain_filter)]
+#![feature(drain_filter)] // For day04
 
 pub mod day01;
 pub mod day02;
