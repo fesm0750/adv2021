@@ -1,3 +1,21 @@
+//! Day 06
+//!
+//! # Problem:
+//!
+//! From a list of ages (time in days to create a new fish) simulate the population growth of a school of lanternfish. A
+//! lanternfish produces a new one once every 7 days, but a new one would take two more days for its first cycle.
+//!
+//! 1. Find how many lanternfish would there be after 80 days;
+//!
+//! 2. Find how many would there be after 256 days.
+//!
+//! # Implementation Details
+//!
+//! - Uses a naive solution for part 1 where each new fish is added as a new element in a `Vec`;
+//!
+//! - For part 2, uses a circular buffer where the positions represent the ages whereas the contents are the numbers of
+//!   fish. An index marks which position holds the fish at 0 days to reproduce.
+
 use std::{error::Error, str::FromStr};
 
 use crate::helpers::read;
@@ -13,18 +31,22 @@ pub fn run() {
     println!("Fish schools size after 256 days: {}", ans_pt2);
 }
 
+/// Helper to parse the input file for part 1 solution, returns a `Vec` where each element is a fish.
 fn parse_input() -> Vec<Lanternfish> {
     let input = read::file_to_string("day06").unwrap();
     let input = input.lines().next().unwrap();
     read::split_into_vec(input, ",")
 }
 
+/// Helper to parse the input file for part 2 solution, the output is a struct `SchoolOfLanternfish` which models the
+/// behaviour of the group.
 fn parse_input_pt2() -> SchoolOfLanternfish {
     let input = read::file_to_string("day06").unwrap();
     let input = input.lines().next().unwrap();
     input.parse().unwrap()
 }
 
+/// Solution for part 1 simulating each individual fish.
 fn part01(fish_school: &mut Vec<Lanternfish>, days: usize) -> usize {
     for _ in 1..days + 1 {
         let mut younglings: Vec<Lanternfish> = Vec::new();
@@ -39,11 +61,10 @@ fn part01(fish_school: &mut Vec<Lanternfish>, days: usize) -> usize {
     fish_school.len()
 }
 
+/// Solution for part 2 simulating the behaviour of the group.
 fn part02(fish_school: &mut SchoolOfLanternfish, days: usize) -> u64 {
-    // println!("{:?}", fish_school);
     for _ in 1..days + 1 {
         fish_school.try_reproduce();
-        // println!("{:?}", fish_school);
     }
     fish_school.school.iter().sum()
 }
@@ -52,6 +73,8 @@ fn part02(fish_school: &mut SchoolOfLanternfish, days: usize) -> u64 {
 // Lanternfish
 //------------------------------
 
+/// Represents an Lanternfish.
+/// Holds an `u8` counting the remaing time until this fish can reproduce.
 #[derive(Copy, Clone, Debug)]
 struct Lanternfish(u8);
 
@@ -78,6 +101,7 @@ impl FromStr for Lanternfish {
 // Fish School
 //------------------------------
 
+/// Models the school of Lanternfish as a circular buffer to simulate its reprodutive behaviour.
 #[derive(Copy, Clone, Debug)]
 struct SchoolOfLanternfish {
     school: [u64; 9], // an array to use as a circular buffer and hold day 0 to day 8
