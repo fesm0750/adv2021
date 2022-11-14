@@ -8,13 +8,19 @@
 //! 1. the points which at least two vertical or horizontal lines overlap;
 //!
 //! 2. the points which at least two lines overlap (vertical, horizontal or diagonal).
+//!
+//! # Implementation Details
+//! - The original solution (+some improvements) is in the main module;
+//! - A second aproach using a more elegant way to structure the code is given in the module `second_implementation`
+
+extern crate test;
+
 use crate::helpers::{
     base2d::Base2d,
     grid::Grid,
     read,
     utils::{self, delta::Delta},
 };
-type Line<'a> = (&'a Base2d<u16>, &'a Base2d<u16>);
 
 pub fn run() {
     let input: Vec<_> = parse_input().collect();
@@ -122,12 +128,146 @@ fn fill_diagonal(grid: &mut Grid<u16>, p0: &Base2d<u16>, p1: &Base2d<u16>) {
     }
 }
 
-/// from a iterator over points returns a iterator of pairs representing lines.
-//? make a test using chunks_exact
-fn pairs(input: &[Base2d<u16>]) -> impl Iterator<Item = Line> {
-    let iter1 = input.iter().step_by(2);
-    let iter2 = input.iter().skip(1).step_by(2);
-    iter1.zip(iter2)
+//--------------------------------------------------------------------
+// Second Implementation
+//--------------------------------------------------------------------
+
+pub mod second_implementation {
+    use itertools::{Itertools, Tuples};
+    use std::{error::Error, iter::Copied, slice::Iter, str::FromStr};
+
+    use crate::helpers::{base2d::Base2d, grid::Grid, read, utils::delta::Delta};
+
+    //-----------------
+    // Type Definitions
+    //-----------------
+
+    type Line = (Base2d<u16>, Base2d<u16>);
+
+    struct Lines(Vec<Base2d<u16>>);
+
+    #[allow(dead_code)] // some of the variants have not been used by the solution
+    #[derive(PartialEq)]
+    enum LinePattern {
+        All,        // any type
+        Diagonal,   // 45° diagonal lines
+        Horizontal, // Same row
+        Straight,   // Horizontal or Vertical
+        Vertical,   // Same column
+    }
+
+    //-----------------
+    // Solution
+    //-----------------
+
+    pub fn run() {
+        let lines: Lines = read::file_to_string("day05").unwrap().parse().unwrap();
+
+        // calculates max lenghs to create a grid
+        let (len_x, len_y) = lines.max_dimensions();
+
+        // +1 because initial position is (0, 0)
+        let mut grid = Grid::new((len_x + 1) as usize, (len_y + 1) as usize, 0u16);
+        let count_overlaps_straight = overlap_lines(&mut grid, &lines, LinePattern::Straight);
+        let count_overlaps_all = overlap_lines(&mut grid, &lines, LinePattern::Diagonal);
+
+        println!("Day 05");
+        println!("Count of overlaps for straight lines: {}", count_overlaps_straight);
+        println!("Count of overlaps for all lines: {}", count_overlaps_all);
+        println!();
+    }
+
+    /// Updates the `grid` according to list of `lines` and a `filter` criteria and then returns the total of overlaped
+    /// positions.
+    ///
+    /// #Inputs
+    /// `grid`: a `Grid` which uses `u16` variables an a (x, y) coordinate systems.
+    /// `lines`: a list of points `Base2d` defining a line.
+    /// `filter`: the update criteria
+    fn overlap_lines(grid: &mut Grid<u16>, lines: &Lines, filter: LinePattern) -> usize {
+        let filter_criteria: Box<dyn Fn(&Line) -> bool> = Box::new(match filter {
+            LinePattern::All => |_| true,
+            LinePattern::Horizontal => |line| -> bool { line.0.is_same_row(&line.1) },
+            LinePattern::Vertical => |line| -> bool { line.0.is_same_column(&line.1) },
+            LinePattern::Straight => |line| -> bool { line.0.is_same_column(&line.1) || line.0.is_same_row(&line.1) },
+            LinePattern::Diagonal => {
+                |line| -> bool { !(line.0.is_same_column(&line.1) || line.0.is_same_row(&line.1)) }
+            }
+        });
+
+        lines
+            .into_iter()
+            .filter(filter_criteria)
+            .for_each(|line| update_grid_line(grid, line));
+
+        grid.iter().filter(|&&v| v > 1).count()
+    }
+
+    //-----------------
+    // Helper Functions
+    //-----------------
+
+    /// helper function to update the posions under a given line in the grid (vertical, horizontal or diagonals at 45°).
+    fn update_grid_line(grid: &mut Grid<u16>, line: Line) {
+        let (p0, p1) = line;
+        let dx = Delta::new(p0.x, p1.x, if p0.is_same_column(&p1) { 0 } else { 1 });
+        let dy = Delta::new(p0.y, p1.y, if p0.is_same_row(&p1) { 0 } else { 1 });
+
+        let (mut x, mut y) = p0.tuple();
+        *grid.get_mut(x.into(), y.into()) += 1;
+        loop {
+            x += dx;
+            y += dy;
+            *grid.get_mut(x.into(), y.into()) += 1;
+            if (x, y) == p1.tuple() {
+                break;
+            }
+        }
+    }
+
+    //-----------------
+    // Implementations
+    //-----------------
+
+    impl Lines {
+        /// reads all lines and returns the x and y boundaries.
+        fn max_dimensions(&self) -> (u16, u16) {
+            self.0.iter().fold((0, 0), |(lx, ly), b| (lx.max(b.x), ly.max(b.y)))
+        }
+    }
+
+    impl IntoIterator for Lines {
+        type Item = Line;
+        type IntoIter = Tuples<std::vec::IntoIter<Base2d<u16>>, Self::Item>;
+
+        fn into_iter(self) -> Self::IntoIter {
+            self.0.into_iter().tuples()
+        }
+    }
+
+    impl<'a> IntoIterator for &'a Lines {
+        type Item = Line;
+        type IntoIter = Tuples<Copied<Iter<'a, Base2d<u16>>>, Self::Item>;
+
+        fn into_iter(self) -> Self::IntoIter {
+            self.0.iter().copied().tuples()
+        }
+    }
+
+    impl FromStr for Lines {
+        type Err = Box<dyn Error>;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            let lines = s
+                .lines()
+                .flat_map(|s| s.split(" -> "))
+                .map(str::parse::<Base2d<u16>>)
+                .flatten()
+                .collect();
+
+            Ok(Self(lines))
+        }
+    }
 }
 
 //--------------------------------------------------------------------
@@ -138,6 +278,7 @@ fn pairs(input: &[Base2d<u16>]) -> impl Iterator<Item = Line> {
 mod tests {
     use super::*;
     use lazy_static::lazy_static;
+    use test::Bencher;
 
     lazy_static! {
         static ref TEST_INPUT: Vec<Base2d<u16>> = vec![
@@ -171,5 +312,19 @@ mod tests {
         assert_eq!(ans1, 5);
         let ans2 = overlaps_diagonal_lines(&mut grid, &TEST_INPUT);
         assert_eq!(ans2, 12);
+    }
+
+    //-----------------
+    // Benches
+    //-----------------
+
+    #[bench]
+    fn bench_1st_run(b: &mut Bencher) {
+        b.iter(|| run());
+    }
+
+    #[bench]
+    fn bench_2nd_run(b: &mut Bencher) {
+        b.iter(|| second_implementation::run());
     }
 }
