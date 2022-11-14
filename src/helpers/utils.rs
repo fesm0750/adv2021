@@ -21,10 +21,13 @@ pub fn pairs_zip<T>(input: &[T]) -> impl Iterator<Item = (&T, &T)> {
     iter1.zip(iter2)
 }
 
+/// An enum to allow subtracting negative deltas or steps from unsigned numbers.
 /// based on Matklad code, available on <https://internals.rust-lang.org/t/representing-difference-between-unsigned-integers/13563/12>
-/// An enum to permite subtract negative deltas or step from unsigned numbers.
+///
+/// # Warnings
+/// - The caller must make sure the subtractions or additions will not overflow.
 pub mod delta {
-    use std::ops::{Add, AddAssign, Sub, SubAssign};
+    use std::ops::{AddAssign, Sub};
     #[derive(Copy, Clone)]
     pub enum Delta<T> {
         Add(T),
@@ -52,8 +55,35 @@ pub mod delta {
         }
     }
 
+    impl AddAssign<Delta<u64>> for u64 {
+        fn add_assign(&mut self, rhs: Delta<u64>) {
+            match rhs {
+                Delta::Add(amt) => *self += amt,
+                Delta::Sub(amt) => *self -= amt,
+            }
+        }
+    }
+
+    impl AddAssign<Delta<u32>> for u32 {
+        fn add_assign(&mut self, rhs: Delta<u32>) {
+            match rhs {
+                Delta::Add(amt) => *self += amt,
+                Delta::Sub(amt) => *self -= amt,
+            }
+        }
+    }
+
     impl AddAssign<Delta<u16>> for u16 {
         fn add_assign(&mut self, rhs: Delta<u16>) {
+            match rhs {
+                Delta::Add(amt) => *self += amt,
+                Delta::Sub(amt) => *self -= amt,
+            }
+        }
+    }
+
+    impl AddAssign<Delta<u8>> for u8 {
+        fn add_assign(&mut self, rhs: Delta<u8>) {
             match rhs {
                 Delta::Add(amt) => *self += amt,
                 Delta::Sub(amt) => *self -= amt,
