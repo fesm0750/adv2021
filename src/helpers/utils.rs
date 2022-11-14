@@ -3,19 +3,19 @@ use std::{
     slice::ChunksExact,
 };
 
-/// given two input numbers, returns a tuple containing (min, max)
+/// given two input numbers, returns them in a tuple (min, max)
 pub fn min_max<T: Ord + Copy>(a0: T, a1: T) -> (T, T) {
     (min(a0, a1), max(a0, a1))
 }
 
-/// from a collection, returns an iterator of pairs.
+/// from a collection, returns an iterator over a slice in (non-overlapping) chunks of 2 elements
 /// internally, uses the `chuncks` method from the Slice.
 pub fn pairs<T>(input: &[T]) -> ChunksExact<T> {
     input.chunks_exact(2)
 }
 
-/// from a collection, returns an iterator of pairs.
-fn pairs2<T>(input: &[T]) -> impl Iterator<Item = (&T, &T)> {
+/// from a collection, returns an iterator of pairs. Uses internally `zip` iterator adapter.
+pub fn pairs_zip<T>(input: &[T]) -> impl Iterator<Item = (&T, &T)> {
     let iter1 = input.iter().step_by(2);
     let iter2 = input.iter().skip(1).step_by(2);
     iter1.zip(iter2)
